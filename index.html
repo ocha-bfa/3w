@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Présence opérationnelle (3W) — Burkina Faso</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Condensed:wght@400;700&display=swap">
+<link rel="stylesheet" href="style.css?v=20260927a">
+</head>
+<body>
+<div class="chrome" id="chrome">
+  <div class="brand"><b>3W</b><span>Présence opérationnelle · Burkina Faso · HumanBase</span></div>
+  <div class="lens" role="tablist" aria-label="Vue">
+    <button aria-pressed="true" data-lens="national">National</button>
+    <button aria-pressed="false" data-lens="clusters">Clusters</button>
+    <button aria-pressed="false" data-lens="region">Région</button>
+    <button aria-pressed="false" data-lens="org">Organisation</button>
+    <button aria-pressed="false" data-lens="repertoire">Répertoire</button>
+  </div>
+  <div class="presets" id="periods" aria-label="Période"></div>
+  <label class="pick" id="pick-region" hidden>Région <select id="sel-region"></select></label>
+  <label class="pick" id="pick-org" hidden>Organisation <input id="in-org" list="dl-org" placeholder="acronyme…" autocomplete="off"><datalist id="dl-org"></datalist></label>
+  <label class="pick" id="pick-search" hidden>Rechercher <input id="in-search" placeholder="acronyme, nom, cluster…"></label>
+  <span class="status" id="status"></span>
+  <button class="print" id="btn-print" type="button">Imprimer cette vue</button>
+  <button class="print" id="btn-print-all" type="button">Tout imprimer</button>
+</div>
+
+<div class="stage" id="stage"><div class="sheets" id="sheets">
+
+<!-- ===== NATIONAL ===== -->
+<article class="paper on" data-lens="national" data-title="Vue nationale">
+  <section class="view" id="v-nat">
+    <div class="col">
+      <div class="kbox" id="n-kpis"></div>
+      <div class="kmini" id="n-mini"></div>
+      <div>
+        <div class="sec">Organisations par région <small id="n-map-note"></small></div>
+        <div id="n-map"></div>
+        <div class="legend" id="n-legend"></div>
+      </div>
+      <div>
+        <div class="sec">Organisations par commune <small>cliquer une commune → sa région</small></div>
+        <div id="n-cmap"></div>
+        <div class="legend" id="n-clegend"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="sec">Nombre d'organisations par région et par cluster <small>cliquer une région → sa feuille</small></div>
+      <div class="xt" id="n-table"></div>
+    </div>
+    <div class="col">
+      <div>
+        <div class="sec">Organisations par type</div>
+        <div class="hb" id="n-types"></div>
+      </div>
+      <div>
+        <div class="sec">Organisations par cluster</div>
+        <div class="hb" id="n-clusters"></div>
+      </div>
+      <div>
+        <div class="sec">Organisations par période</div>
+        <div class="hb" id="n-periods"></div>
+      </div>
+      <div class="chg" id="n-change"></div>
+    </div>
+  </section>
+</article>
+
+<!-- ===== CLUSTERS : 8 cartes communales ===== -->
+<article class="paper" data-lens="clusters" data-title="Présence par cluster et par commune">
+  <section class="view" id="v-cl"></section>
+</article>
+
+<!-- ===== RÉGION (gabarit ; dupliqué pour « Tout imprimer ») ===== -->
+<article class="paper" data-lens="region" data-title="Vue régionale" id="paper-region">
+  <section class="view v-reg">
+    <div class="col">
+      <div class="kbox" data-r="kpis"></div>
+      <div class="kmini" data-r="mini"></div>
+      <div>
+        <div class="sec">Organisations par commune <small data-r="note"></small></div>
+        <div data-r="map"></div>
+        <div class="legend" data-r="legend"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div>
+        <div class="sec">Organisations par province et par cluster</div>
+        <div class="xt small" data-r="table"></div>
+      </div>
+      <div>
+        <div class="sec">Organisations par type</div>
+        <div class="hb" data-r="types"></div>
+      </div>
+      <div>
+        <div class="sec">Communes les plus couvertes <small>nombre d'organisations</small></div>
+        <div class="hb" data-r="top"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="sec">Organisations présentes par cluster</div>
+      <div class="orglist" data-r="orgs"></div>
+    </div>
+  </section>
+</article>
+
+<!-- ===== ORGANISATION ===== -->
+<article class="paper" data-lens="org" data-title="Fiche organisation">
+  <section class="view v-org">
+    <div class="col">
+      <div class="kbox" id="o-kpis"></div>
+      <div class="kmini" id="o-mini"></div>
+      <div>
+        <div class="sec">Communes d'intervention <small id="o-note"></small></div>
+        <div id="o-map"></div>
+        <div class="legend" id="o-legend"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div>
+        <div class="sec">Présence par cluster et par région <small>nombre de communes</small></div>
+        <div class="xt small" id="o-table"></div>
+      </div>
+      <div>
+        <div class="sec">Présence par période</div>
+        <div class="hb" id="o-periods"></div>
+      </div>
+      <div>
+        <div class="sec">Partenaires et bailleurs</div>
+        <div class="txt" id="o-partners"></div>
+      </div>
+      <div>
+        <div class="sec">Communes d'intervention par région</div>
+        <div class="txt" id="o-communes"></div>
+      </div>
+    </div>
+  </section>
+</article>
+
+<!-- ===== RÉPERTOIRE ===== -->
+<article class="paper tall" data-lens="repertoire" data-title="Répertoire des organisations">
+  <section class="view" id="v-rep">
+    <div class="kmini" id="r-mini"></div>
+    <div class="rep" id="r-table"></div>
+  </section>
+</article>
+
+</div></div>
+<script src="data/geo_bfa.js?v=20260927a"></script>
+<script src="app.js?v=20260927a"></script>
+</body>
+</html>
