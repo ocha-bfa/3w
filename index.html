@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Présence opérationnelle (3W) — Burkina Faso</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Condensed:wght@400;700&display=swap">
-<link rel="stylesheet" href="style.css?v=20260927a">
+<link rel="stylesheet" href="style.css?v=20261022a">
 </head>
 <body>
 <div class="chrome" id="chrome">
@@ -19,7 +19,7 @@
   </div>
   <div class="presets" id="periods" aria-label="Période"></div>
   <label class="pick" id="pick-region" hidden>Région <select id="sel-region"></select></label>
-  <label class="pick" id="pick-org" hidden>Organisation <input id="in-org" list="dl-org" placeholder="acronyme…" autocomplete="off"><datalist id="dl-org"></datalist></label>
+  <label class="pick" id="pick-org" hidden>Organisation <select id="sel-org"></select></label>
   <label class="pick" id="pick-search" hidden>Rechercher <input id="in-search" placeholder="acronyme, nom, cluster…"></label>
   <span class="status" id="status"></span>
   <button class="print" id="btn-print" type="button">Imprimer cette vue</button>
@@ -40,7 +40,7 @@
         <div class="legend" id="n-legend"></div>
       </div>
       <div>
-        <div class="sec">Organisations par commune <small>cliquer une commune → sa région</small></div>
+        <div class="sec">Organisations par province <small>cliquer une province → sa région</small></div>
         <div id="n-cmap"></div>
         <div class="legend" id="n-clegend"></div>
       </div>
@@ -68,7 +68,7 @@
 </article>
 
 <!-- ===== CLUSTERS : 8 cartes communales ===== -->
-<article class="paper" data-lens="clusters" data-title="Présence par cluster et par commune">
+<article class="paper" data-lens="clusters" data-title="Présence par cluster et par province">
   <section class="view" id="v-cl"></section>
 </article>
 
@@ -79,7 +79,7 @@
       <div class="kbox" data-r="kpis"></div>
       <div class="kmini" data-r="mini"></div>
       <div>
-        <div class="sec">Organisations par commune <small data-r="note"></small></div>
+        <div class="sec">Organisations par province <small data-r="note"></small></div>
         <div data-r="map"></div>
         <div class="legend" data-r="legend"></div>
       </div>
@@ -92,10 +92,6 @@
       <div>
         <div class="sec">Organisations par type</div>
         <div class="hb" data-r="types"></div>
-      </div>
-      <div>
-        <div class="sec">Communes les plus couvertes <small>nombre d'organisations</small></div>
-        <div class="hb" data-r="top"></div>
       </div>
     </div>
     <div class="col">
@@ -112,14 +108,14 @@
       <div class="kbox" id="o-kpis"></div>
       <div class="kmini" id="o-mini"></div>
       <div>
-        <div class="sec">Communes d'intervention <small id="o-note"></small></div>
+        <div class="sec">Provinces d'intervention <small id="o-note"></small></div>
         <div id="o-map"></div>
         <div class="legend" id="o-legend"></div>
       </div>
     </div>
     <div class="col">
       <div>
-        <div class="sec">Présence par cluster et par région <small>nombre de communes</small></div>
+        <div class="sec">Présence par cluster et par région <small>nombre de provinces</small></div>
         <div class="xt small" id="o-table"></div>
       </div>
       <div>
@@ -131,7 +127,7 @@
         <div class="txt" id="o-partners"></div>
       </div>
       <div>
-        <div class="sec">Communes d'intervention par région</div>
+        <div class="sec">Provinces d'intervention par région</div>
         <div class="txt" id="o-communes"></div>
       </div>
     </div>
@@ -147,7 +143,7 @@
 </article>
 
 </div></div>
-<script src="data/geo_bfa.js?v=20260927a"></script>
-<script src="app.js?v=20260927a"></script>
+<script src="data/geo_bfa.js?v=20261022a"></script>
+<script src="app.js?v=20261022a"></script>
 </body>
 </html>

@@ -1,8 +1,9 @@
 // Présence opérationnelle (3W) — rendu des feuilles. Données lues dans Supabase (vue v_3w_app), voir sql/.
-// Une ligne de la vue = période × organisation × cluster × zone (commune, ou province quand la commune n'est pas connue).
+// Une ligne de la vue = période × organisation × cluster × zone ; l'app n'utilise que la région et la province (adm1/adm2).
 // Règle de comptage (identique au produit PDF) : une organisation = un acronyme distinct, qu'elle soit organisation
 // principale ou partenaire de mise en œuvre ; jamais d'addition entre périodes ou entre régions (toujours des ensembles distincts).
-// Régions, provinces et communes : découpage 2025 (data/geo_bfa.js), codes nettoyés en base (voir CLAUDE.md).
+// Régions et provinces : découpage 2025 (data/geo_bfa.js), codes nettoyés en base (voir CLAUDE.md).
+// Affichage au niveau province au plus fin (pas de commune) ; pas d'écarts « +/- » entre périodes.
 
 /* ---------- accès Supabase (clé publique, lecture seule) ---------- */
 const SB_URL='https://vshnatreclfntadwcyhy.supabase.co';
@@ -53,21 +54,20 @@ const distinct=(rows,k)=>new Set(rows.map(r=>r[k]).filter(Boolean)).size;
 const activites=rows=>rows.filter(r=>r.principal).reduce((s,r)=>s+(+r.activites||0),0);
 const prevOf=p=>{const i=PERIODS.findIndex(x=>x.key===p);return i>0?PERIODS[i-1]:null};
 const plabel=p=>{const x=PERIODS.find(x=>x.key===p);return x?`${x.label} ${x.annee}`:''};
-// organisations par commune : la commune de la ligne, ou les communes citées quand la ligne couvre plusieurs communes
-function byCommune(rows){const o={};rows.forEach(r=>{const cs=r.adm3_pcode?[r.adm3_pcode]:(r.communes_citees||[]);cs.forEach(c=>{(o[c]=o[c]||new Set()).add(r.org)})});return Object.fromEntries(Object.entries(o).map(([k,v])=>[k,v.size]))}
+// organisations par province (niveau le plus fin affiché)
+const byProvince=rows=>byKeySet(rows,r=>r.adm2_pcode);
 function byKeySet(rows,key){const o={};rows.forEach(r=>{const k=key(r);if(!k)return;(o[k]=o[k]||new Set()).add(r.org)});return Object.fromEntries(Object.entries(o).map(([k,v])=>[k,v.size]))}
-const clsC=v=>v<=0?'c0':v<=5?'c1':v<=20?'c2':'c3';            // communes : 1–5, 6–20, 21+
+const clsP=v=>v<=0?'c0':v<=5?'c1':v<=10?'c2':v<=20?'c3':'c4';  // provinces : 1–5, 6–10, 11–20, 21+
 const clsR=v=>v<=0?'c0':v<=5?'c1':v<=20?'c2':v<=40?'c3':'c4';  // régions : 1–5, 6–20, 21–40, 41+
 const clsT=v=>v<=0?'c0':v<=5?'c1':v<=10?'c2':v<=20?'c3':'c4';  // cellules des tableaux
-const LEG_C=`<span><i style="background:var(--none)"></i>0</span><span><i style="background:var(--b1)"></i>1 – 5</span><span><i style="background:var(--b2)"></i>6 – 20</span><span><i style="background:var(--b3)"></i>21 et plus</span>`;
+const LEG_P=`<span><i style="background:var(--none)"></i>0</span><span><i style="background:var(--b1)"></i>1 – 5</span><span><i style="background:var(--b2)"></i>6 – 10</span><span><i style="background:var(--b3)"></i>11 – 20</span><span><i style="background:var(--b4)"></i>21 et plus</span>`;
 const LEG_R=`<span><i style="background:var(--b1)"></i>1 – 5</span><span><i style="background:var(--b2)"></i>6 – 20</span><span><i style="background:var(--b3)"></i>21 – 40</span><span><i style="background:var(--b4)"></i>41 et plus</span>`;
 const ICON_ORG=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9l9-6 9 6v12h-6v-6H9v6H3z" fill="currentColor"/></svg>`;
 const ICON_PIN=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>`;
-const delta=(a,b)=>b==null?'':`<small class="${a>b?'up':a<b?'dn':''}">${a>b?'+':''}${f(a-b)}</small>`;
 
 /* ---------- composants ---------- */
 function kbox(el,items){el.classList.toggle('one',items.length===1);el.innerHTML=items.map(i=>`<div class="kpi ${i.cls||''}">${i.icon||ICON_ORG}<div class="v">${i.v}${i.d||''}</div><div class="l">${i.l}</div></div>`).join('')}
-function kmini(el,items){el.innerHTML=items.map(i=>`<div><div class="v">${i.v}${i.d!==undefined&&i.d!==null?`<small class="d ${i.d>0?'up':i.d<0?'dn':''}">${i.d>0?'+':''}${f(i.d)}${i.dl?' '+i.dl:''}</small>`:''}</div><div class="l">${i.l}</div></div>`).join('')}
+function kmini(el,items){el.innerHTML=items.map(i=>`<div><div class="v">${i.v}</div><div class="l">${i.l}</div></div>`).join('')}
 function hbars(el,items,opt={}){const max=Math.max(1,...items.map(i=>i.v));if(opt.lw)el.style.setProperty('--lw',opt.lw);
   el.innerHTML=items.length?items.map(i=>`<div class="r ${i.k?'hit':''}" ${i.k?`data-k="${esc(i.k)}"`:''}><span class="n" title="${esc(i.l)}">${esc(i.l)}</span><span class="b ${i.p?'p':''}" style="--w:${(i.v/max).toFixed(3)}"><i></i><span>${i.v?f(i.v):'–'}</span></span></div>`).join(''):`<div class="na">Aucune organisation</div>`;
   if(opt.onClick)el.querySelectorAll('.r.hit').forEach(r=>r.addEventListener('click',()=>opt.onClick(r.dataset.k)))}
@@ -87,35 +87,36 @@ function mapRegions(el,byReg,width,height,onClick){
   const vb=[0,0,GEO.W,GEO.H], scale=Math.min(width/vb[2],height/vb[3]), fl=6.5/scale, fn=10/scale;
   const paths=GEO.R.map(r=>{const v=byReg[r.p]||0;return `<path class="${clsR(v)} hit" d="${r.d}" data-k="${r.p}"><title>${r.n} — ${v} organisation${v>1?'s':''}</title></path>`}).join('');
   const labels=GEO.R.map(r=>{const v=byReg[r.p]||0;const [x0,y0,x1,y1]=bbox(r.d);const small=(y1-y0)<fl*4||(x1-x0)<r.n.length*fl*1.0;
-    return `${small?'':`<text x="${r.c[0]}" y="${r.c[1]-fl*0.55}" font-size="${fl.toFixed(2)}" ${v>20?'fill="#fff" style="stroke:#1F4E79"':''}>${r.n}</text>`}<text class="c ${v>20?'dk':''}" x="${r.c[0]}" y="${r.c[1]+(small?fn*0.35:fn*0.8)}" font-size="${fn.toFixed(2)}" font-weight="700"><title>${r.n}</title>${v||''}</text>`}).join('');
+    return `${small?'':`<text x="${r.c[0]}" y="${r.c[1]-fl*0.55}" font-size="${fl.toFixed(2)}" ${v>20?'style="fill:#fff;stroke:#1F4E79"':''}>${r.n}</text>`}<text class="c ${v>20?'dk':''}" x="${r.c[0]}" y="${r.c[1]+(small?fn*0.35:fn*0.8)}" font-size="${fn.toFixed(2)}" font-weight="700"><title>${r.n}</title>${v||''}</text>`}).join('');
   el.innerHTML=`<svg class="map" style="height:${height}px" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid meet" role="img">${paths}<path class="a0" d="${GEO.A0}"/>${labels}</svg>`;
   if(onClick)el.querySelectorAll('path.hit').forEach(p=>p.addEventListener('click',()=>onClick(p.dataset.k)));
 }
-// carte nationale par commune (petites cartes par cluster, fiche organisation)
-function mapCommunes(el,byCom,width,height,opt={}){
-  const vb=[0,0,GEO.W,GEO.H], scale=Math.min(width/vb[2],height/vb[3]), fl=7/scale, fc=6/scale;
-  const paths=GEO.C.map(c=>{const v=byCom[c.p]||0;return `<path class="${opt.binary?(v?'c3':'c0'):clsC(v)} hit" d="${c.d}" data-k="${c.p}"><title>${c.n} (${PNAME(c.v)}) — ${v?v+' organisation'+(v>1?'s':''):'aucune'}</title></path>`}).join('');
+// carte nationale par province (petites cartes par cluster, fiche organisation)
+const PBY={};GEO.P.forEach(p=>PBY[p.p]=p);
+function mapProvinces(el,byProv,width,height,opt={}){
+  const vb=[0,0,GEO.W,GEO.H], scale=Math.min(width/vb[2],height/vb[3]), fl=7/scale, fn=(opt.numSize||8)/scale;
+  const paths=GEO.P.map(p=>{const v=byProv[p.p]||0;return `<path class="${opt.binary?(v?'c3':'c0'):clsP(v)} hit" d="${p.d}" data-k="${p.p}"><title>${p.n} (${RNAME(p.r)}) — ${v?v+' organisation'+(v>1?'s':''):'aucune'}</title></path>`}).join('');
   const rl=opt.labels?GEO.R.map(r=>`<text x="${r.c[0]}" y="${r.c[1]}" font-size="${fl.toFixed(2)}">${r.n}</text>`).join(''):'';
-  const cl=opt.communeLabels?GEO.C.filter(c=>byCom[c.p]>0).map(c=>`<text class="c" x="${c.c[0]}" y="${c.c[1]+fc*0.35}" font-size="${fc.toFixed(2)}">${c.n}</text>`).join(''):'';
-  el.innerHTML=`<svg class="map" style="height:${height}px" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid meet" role="img">${paths}${GEO.R.map(r=>`<path class="r" d="${r.d}"/>`).join('')}<path class="a0" d="${GEO.A0}"/>${rl}${cl}</svg>`;
-  el.querySelectorAll('path.hit').forEach(p=>p.addEventListener('click',()=>{const c=CBY[p.dataset.k];if(c){S.region=c.r;setLens('region')}}));
+  const nl=opt.numbers?GEO.P.filter(p=>byProv[p.p]>0).map(p=>{const v=byProv[p.p];return `<text class="c ${v>10?'dk':''}" x="${p.c[0]}" y="${p.c[1]+fn*0.35}" font-size="${fn.toFixed(2)}" font-weight="700">${v}</text>`}).join(''):'';
+  el.innerHTML=`<svg class="map" style="height:${height}px" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid meet" role="img">${paths}${GEO.R.map(r=>`<path class="r" d="${r.d}"/>`).join('')}<path class="a0" d="${GEO.A0}"/>${rl}${nl}</svg>`;
+  el.querySelectorAll('path.hit').forEach(p=>p.addEventListener('click',()=>{const g=PBY[p.dataset.k];if(g){S.region=g.r;setLens('region')}}));
 }
-// carte régionale : communes de la région en bleus, provinces en pointillé, voisines en gris clair
-function mapRegion(el,reg,byCom,width,height){
+// carte régionale : provinces de la région en bleus (nom + nombre d'organisations), voisines en gris clair
+function mapRegion(el,reg,byProv,width,height){
   const R=GEO.R.find(r=>r.p===reg);if(!R){el.innerHTML='';return}
   let [x0,y0,x1,y1]=bbox(R.d);const pad=Math.max(x1-x0,y1-y0)*0.05;
   let vb=[x0-pad,y0-pad,x1-x0+2*pad,y1-y0+2*pad];
   const ratio=width/height;if(vb[2]/vb[3]<ratio){const w=vb[3]*ratio;vb[0]-=(w-vb[2])/2;vb[2]=w}else{const h=vb[2]/ratio;vb[1]-=(h-vb[3])/2;vb[3]=h}
-  const scale=width/vb[2], k=1/scale, fl=10*k, fc=7*k, fp=7.5*k;
-  const inside=c=>c.r===reg;
+  const scale=width/vb[2], k=1/scale, fl=10*k, fp=9*k, fn=14*k;
+  const inside=p=>p.r===reg;
   const vis=c=>{const [a,b,c2,d]=bbox(c.d);return c2>=vb[0]&&a<=vb[0]+vb[2]&&d>=vb[1]&&b<=vb[1]+vb[3]};
-  const paths=GEO.C.filter(vis).map(c=>{const v=inside(c)?(byCom[c.p]||0):0;
-    return `<path class="${inside(c)?clsC(v):'out'}" d="${c.d}"><title>${c.n} — ${v?v+' organisation'+(v>1?'s':''):'aucune'}</title></path>`}).join('');
-  const prov=GEO.P.filter(p=>p.r===reg);
-  const labels=GEO.C.filter(inside).map(c=>{const v=byCom[c.p]||0;return `<text class="c ${v>20?'dk':v?'':'mute'}" x="${c.c[0]}" y="${c.c[1]+fc*0.35}" font-size="${fc.toFixed(2)}">${c.n}${v?' '+v:''}</text>`}).join('');
+  const paths=GEO.P.filter(vis).map(p=>{const v=inside(p)?(byProv[p.p]||0):0;
+    return `<path class="${inside(p)?clsP(v):'out'}" d="${p.d}"><title>${p.n} — ${v?v+' organisation'+(v>1?'s':''):'aucune'}</title></path>`}).join('');
+  const labels=GEO.P.filter(inside).map(p=>{const v=byProv[p.p]||0;const dk=v>10;
+    return `<text x="${p.c[0]}" y="${p.c[1]-fn*0.25}" font-size="${fp.toFixed(2)}" ${dk?'style="fill:#fff;stroke:#1F4E79"':''}>${p.n}</text><text class="c ${dk?'dk':v?'':'mute'}" x="${p.c[0]}" y="${p.c[1]+fn*0.85}" font-size="${fn.toFixed(2)}" font-weight="700">${v}</text>`}).join('');
   const nb=GEO.R.filter(r=>r.p!==reg&&vis(r)).map(r=>`<text class="nb" x="${r.c[0]}" y="${r.c[1]}" font-size="${fl.toFixed(2)}">${r.n}</text>`).join('');
   el.innerHTML=`<svg class="map" style="height:${height}px;--k:${k.toFixed(3)}" viewBox="${vb.map(v=>v.toFixed(1)).join(' ')}" preserveAspectRatio="xMidYMid meet" role="img">
-    ${paths}${prov.map(p=>`<path class="pv" d="${p.d}"/>`).join('')}${GEO.R.map(r=>`<path class="r ${r.p===reg?'sel':''}" d="${r.d}"/>`).join('')}${nb}${prov.map(p=>`<text x="${p.c[0]}" y="${p.c[1]-fp*1.2}" font-size="${fp.toFixed(2)}" fill="#6B7785">${p.n}</text>`).join('')}${labels}</svg>
+    ${paths}${GEO.R.map(r=>`<path class="r ${r.p===reg?'sel':''}" d="${r.d}"/>`).join('')}${nb}${labels}</svg>
     <svg class="locator" viewBox="0 0 ${GEO.W} ${GEO.H}">${GEO.R.map(r=>`<path class="${r.p===reg?'sel':''}" d="${r.d}"/>`).join('')}</svg>`;
 }
 
@@ -126,7 +127,7 @@ function changeBlock(el,cur,prev,scope){
   if(!prev){el.innerHTML=`<p><b>Évolution :</b> première période disponible.</p>`;return}
   const a=orgs(cur),b=orgs(prev);const nw=[...a].filter(o=>!b.has(o)).sort(),gone=[...b].filter(o=>!a.has(o)).sort();
   const lim=(l,n)=>l.length>n?l.slice(0,n).join(', ')+` … (+${l.length-n})`:l.join(', ');
-  el.innerHTML=`<p><b>Par rapport à ${plabel(prev[0]?pkey(prev[0]):'')}${scope?' ('+scope+')':''} :</b> ${a.size-b.size>=0?'<span class="up">+'+(a.size-b.size)+'</span>':'<span class="dn">'+(a.size-b.size)+'</span>'} organisation${Math.abs(a.size-b.size)>1?'s':''}.</p>
+  el.innerHTML=`<p><b>Par rapport à ${plabel(prev[0]?pkey(prev[0]):'')}${scope?' ('+scope+')':''} :</b> ${f(a.size)} organisations contre ${f(b.size)}.</p>
     <p><b>${nw.length} nouvelle${nw.length>1?'s':''} :</b> ${nw.length?esc(lim(nw,18)):'—'}</p><p><b>${gone.length} absente${gone.length>1?'s':''} :</b> ${gone.length?esc(lim(gone,18)):'—'}</p>`;
 }
 
@@ -135,20 +136,20 @@ function renderNational(){
   const cur=rowsP(S.p), pv=prevOf(S.p), prev=pv?rowsP(pv.key):[];
   const N=nOrgs(cur), NP=pv?nOrgs(prev):null;
   kbox(document.getElementById('n-kpis'),[
-    {v:f(N),d:delta(N,NP),l:`Organisations<br><b>${plabel(S.p)}</b>`},
+    {v:f(N),l:`Organisations<br><b>${plabel(S.p)}</b>`},
     ...(pv?[{v:f(NP),l:`Organisations<br><b>${plabel(pv.key)}</b>`,cls:'prev'}]:[])]);
-  const bc=byCommune(cur);
+  const bp=byProvince(cur);
   kmini(document.getElementById('n-mini'),[
-    {v:f(activites(cur)),l:'Activités rapportées',d:pv?activites(cur)-activites(prev):null},
+    {v:f(activites(cur)),l:'Activités rapportées'},
     {v:f(distinct(cur,'adm1_pcode')),l:'Régions'},{v:f(distinct(cur,'adm2_pcode')),l:'Provinces'},
-    {v:f(Object.keys(bc).length),l:'Communes',d:pv?Object.keys(bc).length-Object.keys(byCommune(prev)).length:null}]);
+    {v:f(distinct(cur,'cluster_code')),l:'Clusters'}]);
   const br=byKeySet(cur,r=>r.adm1_pcode);
   mapRegions(document.getElementById('n-map'),br,MAPW_NAT,205,p=>{S.region=p;setLens('region')});
   document.getElementById('n-map-note').textContent='cliquer une région → sa feuille';
   document.getElementById('n-legend').innerHTML=LEG_R;
-  mapCommunes(document.getElementById('n-cmap'),bc,MAPW_NAT,192,{labels:false});
-  document.getElementById('n-clegend').innerHTML=LEG_C;
-  // évolution : organisations, activités et communes par période
+  mapProvinces(document.getElementById('n-cmap'),bp,MAPW_NAT,192,{labels:false,numbers:true,numSize:7});
+  document.getElementById('n-clegend').innerHTML=LEG_P;
+  // évolution : organisations par période
   hbars(document.getElementById('n-periods'),PERIODS.map(p=>{const rr=rowsP(p.key);return {l:`${p.label} ${p.annee}`,v:nOrgs(rr),p:p.key!==S.p}}),{lw:'112px'});
   // tableau région × cluster
   const rows=GEO.R.map(r=>{const rr=cur.filter(x=>x.adm1_pcode===r.p);const cells=byKeySet(rr,x=>x.cluster_code);return {k:r.p,l:r.n,cells,tot:nOrgs(rr)}}).filter(r=>r.tot).sort((a,b)=>a.l.localeCompare(b.l));
@@ -161,28 +162,26 @@ function renderNational(){
 /* ---------- feuille clusters ---------- */
 function renderClusters(){
   const cur=rowsP(S.p);const el=document.getElementById('v-cl');
-  el.innerHTML=CLUSTERS.map(c=>`<div class="clmap" data-k="${c.k}"><div class="t"><span>${esc(c.n)}</span><b></b></div><div class="m"></div><div class="legend">${LEG_C}</div></div>`).join('');
+  el.innerHTML=CLUSTERS.map(c=>`<div class="clmap" data-k="${c.k}"><div class="t"><span>${esc(c.n)}</span><b></b></div><div class="m"></div><div class="legend">${LEG_P}</div></div>`).join('');
   CLUSTERS.forEach(c=>{const box=el.querySelector(`.clmap[data-k="${c.k}"]`);const rr=cur.filter(r=>r.cluster_code===c.k);
     box.querySelector('b').innerHTML=`${nOrgs(rr)} <small>org.</small>`;
-    mapCommunes(box.querySelector('.m'),byCommune(rr),240,252,{labels:false})});
+    mapProvinces(box.querySelector('.m'),byProvince(rr),240,252,{labels:false,numbers:true,numSize:9})});
 }
 
 /* ---------- feuille région (el = article.paper) ---------- */
 function renderRegion(el,reg){
   const q=k=>el.querySelector(`[data-r="${k}"]`);
   const cur=rowsP(S.p,r=>r.adm1_pcode===reg), pv=prevOf(S.p), prev=pv?rowsP(pv.key,r=>r.adm1_pcode===reg):[];
-  const N=nOrgs(cur), NP=pv?nOrgs(prev):null, bc=byCommune(cur);
-  kbox(q('kpis'),[{v:f(N),d:delta(N,NP),l:`Organisations<br><b>${plabel(S.p)}</b>`},...(pv?[{v:f(NP),l:`Organisations<br><b>${plabel(pv.key)}</b>`,cls:'prev'}]:[])]);
-  kmini(q('mini'),[{v:f(activites(cur)),l:'Activités rapportées',d:pv?activites(cur)-activites(prev):null},{v:f(distinct(cur,'cluster_code')),l:'Clusters'},
-    {v:f(distinct(cur,'adm2_pcode')),l:'Provinces'},{v:f(Object.keys(bc).length),l:'Communes'}]);
-  mapRegion(q('map'),reg,bc,MAPW_REG,430);
-  const nProv=cur.filter(r=>!r.adm3_pcode&&!(r.communes_citees||[]).length).length;
-  q('note').textContent=nProv?`${nProv} ligne${nProv>1?'s':''} connue${nProv>1?'s':''} au niveau province seulement`:'';
-  q('legend').innerHTML=LEG_C;
+  const N=nOrgs(cur), NP=pv?nOrgs(prev):null, bp=byProvince(cur);
+  kbox(q('kpis'),[{v:f(N),l:`Organisations<br><b>${plabel(S.p)}</b>`},...(pv?[{v:f(NP),l:`Organisations<br><b>${plabel(pv.key)}</b>`,cls:'prev'}]:[])]);
+  kmini(q('mini'),[{v:f(activites(cur)),l:'Activités rapportées'},{v:f(distinct(cur,'cluster_code')),l:'Clusters'},
+    {v:f(distinct(cur,'adm2_pcode')),l:'Provinces'},{v:f(cur.filter(r=>r.type_org==='ONG nationale').reduce((s,r)=>s.add(r.org),new Set()).size),l:'ONG nationales'}]);
+  mapRegion(q('map'),reg,bp,MAPW_REG,430);
+  q('note').textContent='';
+  q('legend').innerHTML=LEG_P;
   const prov=GEO.P.filter(p=>p.r===reg).map(p=>{const rr=cur.filter(x=>x.adm2_pcode===p.p);return {k:p.p,l:p.n,cells:byKeySet(rr,x=>x.cluster_code),tot:nOrgs(rr)}}).filter(r=>r.tot);
   xtable(q('table'),prov,{first:'Province',totals:byKeySet(cur,x=>x.cluster_code),grand:N});
   typeBars(q('types'),cur,'110px');
-  hbars(q('top'),Object.entries(bc).map(([p,v])=>({l:(CBY[p]||{}).n||p,v})).sort((a,b)=>b.v-a.v||a.l.localeCompare(b.l)).slice(0,12),{lw:'92px'});
   // organisations par cluster (principales en noir, partenaires de mise en œuvre uniquement en gris)
   q('orgs').innerHTML=CLUSTERS.map(c=>{const rr=cur.filter(r=>r.cluster_code===c.k);if(!rr.length)return'';
     const m={};rr.forEach(r=>{m[r.org]=m[r.org]||r.principal;if(r.principal)m[r.org]=true});
@@ -194,25 +193,25 @@ function renderRegion(el,reg){
 function renderOrg(){
   const org=S.org;const all=ROWS.filter(r=>r.org===org), cur=all.filter(r=>pkey(r)===S.p);
   const q=id=>document.getElementById(id);
-  if(!org||!all.length){kbox(q('o-kpis'),[{v:'—',l:'Choisir une organisation dans la barre du haut'}]);q('o-mini').innerHTML='';q('o-map').innerHTML='';q('o-table').innerHTML='';q('o-periods').innerHTML='';q('o-partners').innerHTML='';q('o-communes').innerHTML='';q('o-legend').innerHTML='';return}
-  const bc=byCommune(cur), type=all[0].type_org, nom=all[0].nom_complet;
-  kbox(q('o-kpis'),[{v:esc(org),l:`${esc(nom||'')}<br><b>${esc(type)}</b>`},{v:f(Object.keys(bc).length),icon:ICON_PIN,l:`Communes d'intervention<br><b>${plabel(S.p)}</b>`}]);
-  kmini(q('o-mini'),[{v:f(distinct(cur,'cluster_code')),l:'Clusters'},{v:f(distinct(cur,'adm1_pcode')),l:'Régions'},{v:f(distinct(cur,'adm2_pcode')),l:'Provinces'},{v:f(activites(cur)),l:'Activités rapportées'}]);
-  mapCommunes(q('o-map'),bc,MAPW_ORG,420,{labels:true,communeLabels:false,binary:true});
+  if(!org||!all.length){kbox(q('o-kpis'),[{v:'—',l:'Aucune organisation sur cette période'}]);q('o-mini').innerHTML='';q('o-map').innerHTML='';q('o-table').innerHTML='';q('o-periods').innerHTML='';q('o-partners').innerHTML='';q('o-communes').innerHTML='';q('o-legend').innerHTML='';return}
+  const bp=byProvince(cur), type=all[0].type_org, nom=all[0].nom_complet;
+  kbox(q('o-kpis'),[{v:esc(org),l:`${esc(nom||'')}<br><b>${esc(type)}</b>`},{v:f(Object.keys(bp).length),icon:ICON_PIN,l:`Provinces d'intervention<br><b>${plabel(S.p)}</b>`}]);
+  kmini(q('o-mini'),[{v:f(distinct(cur,'cluster_code')),l:'Clusters'},{v:f(distinct(cur,'adm1_pcode')),l:'Régions'},{v:f(activites(cur)),l:'Activités rapportées'}]);
+  mapProvinces(q('o-map'),bp,MAPW_ORG,420,{labels:true,binary:true});
   q('o-note').textContent=cur.length?'':'absente sur cette période';
-  q('o-legend').innerHTML=`<span><i style="background:var(--b3)"></i>Commune d'intervention</span>`;
-  // cluster × région : nombre de communes
+  q('o-legend').innerHTML=`<span><i style="background:var(--b3)"></i>Province d'intervention</span>`;
+  // cluster × région : nombre de provinces
   const regs=GEO.R.filter(r=>cur.some(x=>x.adm1_pcode===r.p));
   q('o-table').innerHTML=`<table><thead><tr><th>Région</th>${CLUSTERS.map(c=>`<th title="${esc(c.n)}">${esc(c.h)}</th>`).join('')}<th class="t">Total</th></tr></thead><tbody>
-    ${regs.map(r=>{const rr=cur.filter(x=>x.adm1_pcode===r.p);const cells=CLUSTERS.map(c=>{const v=Object.keys(byCommune(rr.filter(x=>x.cluster_code===c.k))).length;const any=rr.some(x=>x.cluster_code===c.k);return `<td class="${any?(v?clsT(v):'c1'):''}">${v||(any?'●':'')}</td>`}).join('');
-      return `<tr><td>${esc(r.n)}</td>${cells}<td class="t">${Object.keys(byCommune(rr)).length}</td></tr>`}).join('')}</tbody></table>`;
-  hbars(q('o-periods'),PERIODS.map(p=>{const rr=all.filter(r=>pkey(r)===p.key);return {l:`${p.label} ${p.annee}`,v:Object.keys(byCommune(rr)).length,p:p.key!==S.p}}),{lw:'120px'});
+    ${regs.map(r=>{const rr=cur.filter(x=>x.adm1_pcode===r.p);const cells=CLUSTERS.map(c=>{const v=Object.keys(byProvince(rr.filter(x=>x.cluster_code===c.k))).length;const any=rr.some(x=>x.cluster_code===c.k);return `<td class="${any?(v?clsT(v):'c1'):''}">${v||(any?'●':'')}</td>`}).join('');
+      return `<tr><td>${esc(r.n)}</td>${cells}<td class="t">${Object.keys(byProvince(rr)).length}</td></tr>`}).join('')}</tbody></table>`;
+  hbars(q('o-periods'),PERIODS.map(p=>{const rr=all.filter(r=>pkey(r)===p.key);return {l:`${p.label} ${p.annee}`,v:Object.keys(byProvince(rr)).length,p:p.key!==S.p}}),{lw:'120px'});
   // partenaires & bailleurs (depuis la vue des paires)
   const pr=PAIRS.filter(x=>pkey(x)===S.p&&(x.organisation===org||x.partenaire_moe===org));
   const moe=[...new Set(pr.filter(x=>x.organisation===org&&x.partenaire_moe&&x.partenaire_moe!==org).map(x=>x.partenaire_moe))].sort();
   const lead=[...new Set(pr.filter(x=>x.partenaire_moe===org&&x.organisation!==org).map(x=>x.organisation))].sort();
   const bail=[...new Set(pr.flatMap(x=>(x.bailleur||'').split('|').map(s=>s.trim()).filter(Boolean)))].sort();
-  const byReg={};Object.keys(bc).forEach(c=>{const g=CBY[c];if(g)(byReg[g.r]=byReg[g.r]||[]).push(g.n)});
+  const byReg={};Object.keys(bp).forEach(c=>{const g=PBY[c];if(g)(byReg[g.r]=byReg[g.r]||[]).push(g.n)});
   q('o-communes').innerHTML=Object.keys(byReg).length?GEO.R.filter(r=>byReg[r.p]).map(r=>`<p><b>${esc(r.n)} :</b> ${esc(byReg[r.p].sort().join(', '))}</p>`).join(''):'';
   q('o-partners').innerHTML=`<p><b>Met en œuvre via :</b> ${moe.length?esc(moe.join(', ')):'—'}</p><p><b>Partenaire de mise en œuvre de :</b> ${lead.length?esc(lead.join(', ')):'—'}</p><p><b>Bailleurs :</b> ${bail.length?esc(bail.join(', ')):'—'}</p>`;
 }
@@ -254,7 +253,11 @@ function render(){
   if(!S.region||!GEO.R.find(r=>r.p===S.region))S.region=opts[0].p;
   document.getElementById('sel-region').innerHTML=opts.map(r=>`<option value="${r.p}">${r.n}${br[r.p]?` (${br[r.p]})`:''}</option>`).join('');
   document.getElementById('sel-region').value=S.region;
-  document.getElementById('in-org').value=S.org||'';
+  // organisations de la période (liste déroulante) ; jamais de fiche vide : à défaut, la première par ordre alphabétique
+  const orgsP=[...orgs(rowsP(S.p))].sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+  if(!S.org||!orgsP.includes(S.org))S.org=orgsP[0]||null;
+  document.getElementById('sel-org').innerHTML=orgsP.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  document.getElementById('sel-org').value=S.org||'';
   heads();
   if(S.lens==='national')renderNational();
   else if(S.lens==='clusters')renderClusters();
@@ -277,7 +280,7 @@ function dressPaper(p){
 document.querySelectorAll('.paper').forEach(dressPaper);
 document.querySelectorAll('.lens button').forEach(b=>b.addEventListener('click',()=>setLens(b.dataset.lens)));
 document.getElementById('sel-region').addEventListener('change',e=>{S.region=e.target.value;render()});
-document.getElementById('in-org').addEventListener('change',e=>{const v=e.target.value.trim();const hit=ORGNAMES.find(o=>o.toLowerCase()===v.toLowerCase());if(hit){S.org=hit;render()}});
+document.getElementById('sel-org').addEventListener('change',e=>{S.org=e.target.value;render()});
 document.getElementById('in-search').addEventListener('input',e=>{S.q=e.target.value;renderRepertoire();fit()});
 window.addEventListener('beforeprint',()=>{const ps=[...document.querySelectorAll('.paper')];ps.forEach(p=>p.classList.remove('last'));
   const vis=ps.filter(p=>getComputedStyle(p).display!=='none'||document.body.classList.contains('all'));if(vis.length)vis[vis.length-1].classList.add('last')});
@@ -316,7 +319,6 @@ async function boot(){
     document.getElementById('periods').innerHTML=PERIODS.map(p=>`<button data-p="${p.key}">${p.label} ${p.annee}</button>`).join('');
     document.querySelectorAll('#periods button').forEach(b=>b.addEventListener('click',()=>{S.p=b.dataset.p;render()}));
     ORGNAMES=[...new Set(ROWS.map(r=>r.org))].sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
-    document.getElementById('dl-org').innerHTML=ORGNAMES.map(o=>`<option value="${esc(o)}">`).join('');
     readHash();render();st.textContent='';
   }catch(e){st.textContent='Erreur de chargement : '+e.message;console.error(e)}
 }
