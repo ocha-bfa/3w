@@ -34,6 +34,8 @@ const CL=Object.fromEntries(CLUSTERS.map(c=>[c.k,c]));
 const TYPES=['ONG nationale','ONG internationale','Nations Unies','Gouvernement','Consortium','Mouvement Croix-Rouge','Autre','Non renseigné'];
 const ART={BF47:"du ",BF60:"de la ",BF58:"de la ",BF55:"de l'"};
 const regionTitle=p=>{const r=GEO.R.find(x=>x.p===p);return r?`région ${ART[p]||'du '}${r.n}`:''};
+// régions par ordre alphabétique (listes, tableaux, sélecteur, « Tout imprimer »)
+const RSORT=[...GEO.R].sort((a,b)=>a.n.localeCompare(b.n,'fr',{sensitivity:'base'}));
 const RNAME=p=>(GEO.R.find(x=>x.p===p)||{}).n||p;
 const PNAME=p=>(GEO.P.find(x=>x.p===p)||{}).n||p;
 const CBY={};GEO.C.forEach(c=>CBY[c.p]=c);
@@ -45,6 +47,7 @@ let ROWS=[], PERIODS=[]; // PERIODS = [{key:'2026-3', annee, ordre, label}]
 
 /* ---------- helpers ---------- */
 const f=v=>Math.round(v).toLocaleString('fr-FR');
+const fold=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pkey=r=>`${r.annee}-${r.bimestre_ordre}`;
 const rowsP=(p,fn)=>ROWS.filter(r=>pkey(r)===p&&(!fn||fn(r)));
@@ -152,7 +155,7 @@ function renderNational(){
   // évolution : organisations par période
   hbars(document.getElementById('n-periods'),PERIODS.map(p=>{const rr=rowsP(p.key);return {l:`${p.label} ${p.annee}`,v:nOrgs(rr),p:p.key!==S.p}}),{lw:'112px'});
   // tableau région × cluster
-  const rows=GEO.R.map(r=>{const rr=cur.filter(x=>x.adm1_pcode===r.p);const cells=byKeySet(rr,x=>x.cluster_code);return {k:r.p,l:r.n,cells,tot:nOrgs(rr)}}).filter(r=>r.tot).sort((a,b)=>a.l.localeCompare(b.l));
+  const rows=RSORT.map(r=>{const rr=cur.filter(x=>x.adm1_pcode===r.p);const cells=byKeySet(rr,x=>x.cluster_code);return {k:r.p,l:r.n,cells,tot:nOrgs(rr)}}).filter(r=>r.tot).sort((a,b)=>a.l.localeCompare(b.l));
   xtable(document.getElementById('n-table'),rows,{totals:byKeySet(cur,x=>x.cluster_code),grand:N,onClick:p=>{S.region=p;setLens('region')}});
   typeBars(document.getElementById('n-types'),cur,'110px');
   clusterBars(document.getElementById('n-clusters'),cur);
@@ -201,7 +204,7 @@ function renderOrg(){
   q('o-note').textContent=cur.length?'':'absente sur cette période';
   q('o-legend').innerHTML=`<span><i style="background:var(--b3)"></i>Province d'intervention</span>`;
   // cluster × région : nombre de provinces
-  const regs=GEO.R.filter(r=>cur.some(x=>x.adm1_pcode===r.p));
+  const regs=RSORT.filter(r=>cur.some(x=>x.adm1_pcode===r.p));
   q('o-table').innerHTML=`<table><thead><tr><th>Région</th>${CLUSTERS.map(c=>`<th title="${esc(c.n)}">${esc(c.h)}</th>`).join('')}<th class="t">Total</th></tr></thead><tbody>
     ${regs.map(r=>{const rr=cur.filter(x=>x.adm1_pcode===r.p);const cells=CLUSTERS.map(c=>{const v=Object.keys(byProvince(rr.filter(x=>x.cluster_code===c.k))).length;const any=rr.some(x=>x.cluster_code===c.k);return `<td class="${any?(v?clsT(v):'c1'):''}">${v||(any?'●':'')}</td>`}).join('');
       return `<tr><td>${esc(r.n)}</td>${cells}<td class="t">${Object.keys(byProvince(rr)).length}</td></tr>`}).join('')}</tbody></table>`;
@@ -212,21 +215,21 @@ function renderOrg(){
   const lead=[...new Set(pr.filter(x=>x.partenaire_moe===org&&x.organisation!==org).map(x=>x.organisation))].sort();
   const bail=[...new Set(pr.flatMap(x=>(x.bailleur||'').split('|').map(s=>s.trim()).filter(Boolean)))].sort();
   const byReg={};Object.keys(bp).forEach(c=>{const g=PBY[c];if(g)(byReg[g.r]=byReg[g.r]||[]).push(g.n)});
-  q('o-communes').innerHTML=Object.keys(byReg).length?GEO.R.filter(r=>byReg[r.p]).map(r=>`<p><b>${esc(r.n)} :</b> ${esc(byReg[r.p].sort().join(', '))}</p>`).join(''):'';
+  q('o-communes').innerHTML=Object.keys(byReg).length?RSORT.filter(r=>byReg[r.p]).map(r=>`<p><b>${esc(r.n)} :</b> ${esc(byReg[r.p].sort().join(', '))}</p>`).join(''):'';
   q('o-partners').innerHTML=`<p><b>Met en œuvre via :</b> ${moe.length?esc(moe.join(', ')):'—'}</p><p><b>Partenaire de mise en œuvre de :</b> ${lead.length?esc(lead.join(', ')):'—'}</p><p><b>Bailleurs :</b> ${bail.length?esc(bail.join(', ')):'—'}</p>`;
 }
 
 /* ---------- répertoire ---------- */
 function renderRepertoire(){
-  const cur=rowsP(S.p);const q=S.q.trim().toLowerCase();
+  const cur=rowsP(S.p);const q=fold(S.q.trim());
   const m={};ROWS.forEach(r=>{const o=m[r.org]=m[r.org]||{org:r.org,type:r.type_org,nom:r.nom_complet,periods:new Set(),cl:new Set(),reg:new Set()};o.periods.add(pkey(r));if(pkey(r)===S.p){o.cl.add(r.cluster_code);o.reg.add(r.adm1_pcode)}});
   let list=Object.values(m).filter(o=>o.periods.has(S.p));
   kmini(document.getElementById('r-mini'),[{v:f(list.length),l:`Organisations · ${plabel(S.p)}`},{v:f(Object.keys(m).length),l:'Organisations toutes périodes'},{v:f(list.filter(o=>o.type==='ONG nationale').length),l:'ONG nationales'},{v:f(list.filter(o=>o.type==='ONG internationale').length),l:'ONG internationales'}]);
-  if(q)list=list.filter(o=>[o.org,o.nom,o.type,...[...o.cl].map(c=>CL[c]?CL[c].n:c),...[...o.reg].map(RNAME)].join(' ').toLowerCase().includes(q));
+  if(q)list=list.filter(o=>fold([o.org,o.nom,o.type,...[...o.cl].map(c=>CL[c]?`${CL[c].n} ${CL[c].s}`:c),...[...o.reg].map(RNAME),...[...o.reg].map(p=>(GEO.R.find(r=>r.p===p)||{}).n)].join(' ')).includes(q));
   list.sort((a,b)=>TYPES.indexOf(a.type)-TYPES.indexOf(b.type)||a.org.localeCompare(b.org,'fr',{sensitivity:'base'}));
   let out='',last=null;
   list.forEach(o=>{if(o.type!==last){last=o.type;out+=`<tr class="grp"><td colspan="6">${esc(o.type)} · ${list.filter(x=>x.type===o.type).length}</td></tr>`}
-    out+=`<tr><td class="acr" data-k="${esc(o.org)}">${esc(o.org)}</td><td>${esc(o.nom||'')}</td><td class="cl">${CLUSTERS.filter(c=>o.cl.has(c.k)).map(c=>c.s).join(', ')}</td><td>${[...o.reg].map(RNAME).sort().join(', ')}</td><td class="n">${o.reg.size}</td><td class="n">${PERIODS.map(p=>`<i class="dot ${o.periods.has(p.key)?'':'off'}" title="${p.label}"></i>`).join('')}</td></tr>`});
+    out+=`<tr><td class="acr" data-k="${esc(o.org)}">${esc(o.org)}</td><td>${esc(o.nom||'')}</td><td class="cl">${CLUSTERS.filter(c=>o.cl.has(c.k)).map(c=>c.s).join(', ')}</td><td>${[...o.reg].map(RNAME).sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'})).join(', ')}</td><td class="n">${o.reg.size}</td><td class="n">${PERIODS.map(p=>`<i class="dot ${o.periods.has(p.key)?'':'off'}" title="${p.label}"></i>`).join('')}</td></tr>`});
   document.getElementById('r-table').innerHTML=list.length?`<table><thead><tr><th>Sigle</th><th>Nom de l'organisation</th><th>Clusters</th><th>Régions</th><th class="n">Nb</th><th class="n">${PERIODS.map(p=>BIM_SHORT[p.ordre]).join(' · ')}</th></tr></thead><tbody>${out}</tbody></table>`:`<div class="na">Aucune organisation ne correspond</div>`;
   document.querySelectorAll('#r-table td.acr').forEach(td=>td.addEventListener('click',()=>{S.org=td.dataset.k;setLens('org')}));
 }
@@ -246,10 +249,9 @@ function render(){
   document.querySelectorAll('#sheets .paper').forEach(p=>p.classList.toggle('on',p.dataset.lens===S.lens));
   document.getElementById('pick-region').hidden=S.lens!=='region';
   document.getElementById('pick-org').hidden=S.lens!=='org';
-  document.getElementById('pick-search').hidden=S.lens!=='repertoire';
-  document.querySelectorAll('#periods button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===S.p));
+    document.querySelectorAll('#periods button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===S.p));
   const br=byKeySet(rowsP(S.p),r=>r.adm1_pcode);
-  const opts=[...GEO.R].sort((a,b)=>(br[b.p]||0)-(br[a.p]||0)||a.n.localeCompare(b.n));
+  const opts=RSORT;
   if(!S.region||!GEO.R.find(r=>r.p===S.region))S.region=opts[0].p;
   document.getElementById('sel-region').innerHTML=opts.map(r=>`<option value="${r.p}">${r.n}${br[r.p]?` (${br[r.p]})`:''}</option>`).join('');
   document.getElementById('sel-region').value=S.region;
@@ -287,7 +289,7 @@ window.addEventListener('beforeprint',()=>{const ps=[...document.querySelectorAl
 document.getElementById('btn-print').addEventListener('click',()=>window.print());
 // Tout imprimer : national + clusters + une feuille par région (ordre décroissant du nombre d'organisations) + répertoire
 document.getElementById('btn-print-all').addEventListener('click',()=>{
-  const br=byKeySet(rowsP(S.p),r=>r.adm1_pcode);const regs=Object.keys(br).sort((a,b)=>br[b]-br[a]);
+  const br=byKeySet(rowsP(S.p),r=>r.adm1_pcode);const regs=RSORT.map(r=>r.p).filter(p=>br[p]);
   const tpl=document.getElementById('paper-region'), sheets=document.getElementById('sheets'), rep=document.querySelector('.paper[data-lens="repertoire"]');
   const clones=regs.map(p=>{const c=tpl.cloneNode(true);c.id='';c.dataset.region=p;c.classList.add('on','clone');sheets.insertBefore(c,rep);return c});
   tpl.classList.add('skip');document.querySelector('.paper[data-lens="org"]').classList.add('skip');
