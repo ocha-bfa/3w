@@ -14,7 +14,8 @@ Même structure et mêmes conventions que `ocha-bfa/bilan` et `ocha-bfa/deplacem
 - Règle de comptage = celle du produit PDF : une organisation = un acronyme distinct, qu'elle soit organisation principale
   ou partenaire de mise en œuvre. Ne jamais additionner des périodes ni des régions (toujours des ensembles distincts).
   Contrôle : national 125 / 120 / 120 organisations (janv-fév / mars-avril / mai-juin 2026), identique à `v_3w_presence`.
-- Comparaison avec la période précédente : chiffre de la période précédente affiché à côté (bleu clair) et listes des nouvelles/absentes. **Pas d'écarts « +xx / -xx »** (demande du 22/10/2026).
+- Feuille **Région** interactive (écran seulement) : cliquer une province (carte ou ligne du tableau) filtre la liste des organisations, les types et les petits chiffres sur cette province ; étiquette « Province : … ✕ » pour revenir à la région ; recliquer la province l'enlève aussi. Le total de la région reste affiché. Cliquer un nom d'organisation ouvre sa fiche. Cliquer une province sur la carte nationale ouvre sa région déjà filtrée. L'impression n'est jamais filtrée. État dans l'URL (`&prov=BF4901`).
+- **Aucune comparaison entre périodes** (demande du 22/10/2026) : chaque feuille ne montre que la période choisie — pas de chiffre de la période précédente, pas d'écarts, pas de listes nouvelles/absentes, pas de barres ou de pastilles par période.
 - **Niveau le plus fin affiché = province (admin2)** sur toutes les feuilles, y compris l'impression (demande du 22/10/2026) : aucune carte, liste ou compte par commune dans l'app.
 - Cartes en SVG inline (`data/geo_bfa.js`, découpage 2025, même projection que bilan et déplacements). Classes de présence :
   provinces 0 / 1–5 / 6–10 / 11–20 / 21+ ; régions 1–5 / 6–20 / 21–40 / 41+ (bleus OCHA #BBD9F2 #64BDEA #0074B7 #1F4E79).

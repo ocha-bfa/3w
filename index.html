@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Présence opérationnelle (3W) — Burkina Faso</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Condensed:wght@400;700&display=swap">
-<link rel="stylesheet" href="style.css?v=20261022c">
+<link rel="stylesheet" href="style.css?v=20261022e">
 </head>
 <body>
 <div class="chrome" id="chrome">
@@ -57,11 +57,6 @@
         <div class="sec">Organisations par cluster</div>
         <div class="hb" id="n-clusters"></div>
       </div>
-      <div>
-        <div class="sec">Organisations par période</div>
-        <div class="hb" id="n-periods"></div>
-      </div>
-      <div class="chg" id="n-change"></div>
     </div>
   </section>
 </article>
@@ -89,12 +84,13 @@
         <div class="xt small" data-r="table"></div>
       </div>
       <div>
-        <div class="sec">Organisations par type</div>
+        <div class="sec">Organisations par type <small data-r="typesnote"></small></div>
         <div class="hb" data-r="types"></div>
       </div>
     </div>
     <div class="col">
-      <div class="sec">Organisations présentes par cluster</div>
+      <div class="sec">Organisations présentes par cluster <small>cliquer un nom → sa fiche</small></div>
+      <div class="filt" data-r="filter"></div>
       <div class="orglist" data-r="orgs"></div>
     </div>
   </section>
@@ -116,10 +112,6 @@
       <div>
         <div class="sec">Présence par cluster et par région <small>nombre de provinces</small></div>
         <div class="xt small" id="o-table"></div>
-      </div>
-      <div>
-        <div class="sec">Présence par période</div>
-        <div class="hb" id="o-periods"></div>
       </div>
       <div>
         <div class="sec">Partenaires et bailleurs</div>
@@ -144,7 +136,7 @@
 </article>
 
 </div></div>
-<script src="data/geo_bfa.js?v=20261022c"></script>
-<script src="app.js?v=20261022c"></script>
+<script src="data/geo_bfa.js?v=20261022e"></script>
+<script src="app.js?v=20261022e"></script>
 </body>
 </html>
