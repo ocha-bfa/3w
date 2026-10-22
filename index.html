@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Présence opérationnelle (3W) — Burkina Faso</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Condensed:wght@400;700&display=swap">
-<link rel="stylesheet" href="style.css?v=20261022a">
+<link rel="stylesheet" href="style.css?v=20261022b">
 </head>
 <body>
 <div class="chrome" id="chrome">
@@ -20,7 +20,6 @@
   <div class="presets" id="periods" aria-label="Période"></div>
   <label class="pick" id="pick-region" hidden>Région <select id="sel-region"></select></label>
   <label class="pick" id="pick-org" hidden>Organisation <select id="sel-org"></select></label>
-  <label class="pick" id="pick-search" hidden>Rechercher <input id="in-search" placeholder="acronyme, nom, cluster…"></label>
   <span class="status" id="status"></span>
   <button class="print" id="btn-print" type="button">Imprimer cette vue</button>
   <button class="print" id="btn-print-all" type="button">Tout imprimer</button>
@@ -138,12 +137,14 @@
 <article class="paper tall" data-lens="repertoire" data-title="Répertoire des organisations">
   <section class="view" id="v-rep">
     <div class="kmini" id="r-mini"></div>
+    <label class="search noprint">Rechercher une organisation, un cluster ou une région
+      <input id="in-search" type="search" placeholder="ex. Plan, Santé, Liptako" autocomplete="off"></label>
     <div class="rep" id="r-table"></div>
   </section>
 </article>
 
 </div></div>
-<script src="data/geo_bfa.js?v=20261022a"></script>
-<script src="app.js?v=20261022a"></script>
+<script src="data/geo_bfa.js?v=20261022b"></script>
+<script src="app.js?v=20261022b"></script>
 </body>
 </html>

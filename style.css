@@ -31,8 +31,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 
 /* ---------- the papers ---------- */
 .stage{padding:12px 16px 32px;display:flex;justify-content:center;overflow:hidden}
-.sheets{width:1123px;transform-origin:top left;display:flex;flex-direction:column;gap:18px}
-.paper{width:1123px;height:794px;background:var(--paper);box-shadow:0 2px 14px rgba(31,42,55,.12);position:relative;padding:24px 34px 18px;display:none;flex-direction:column;gap:10px}
+.sheets{width:1123px;transform-origin:top left;display:flex;flex-direction:column;gap:18px;align-self:flex-start}
+.paper{flex-shrink:0;width:1123px;height:794px;background:var(--paper);box-shadow:0 2px 14px rgba(31,42,55,.12);position:relative;padding:24px 34px 18px;display:none;flex-direction:column;gap:10px}
 .paper.on{display:flex}
 .paper.tall{height:auto;min-height:794px}
 .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--ocha);padding-bottom:6px}
@@ -162,14 +162,16 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .v-reg{grid-template-columns:330px 1fr 290px;gap:10px 20px}
 .v-org{grid-template-columns:400px 1fr;gap:10px 22px}
 .view .col{display:flex;flex-direction:column;gap:9px;min-height:0;overflow:hidden;position:relative}
-#v-rep{grid-template-rows:auto 1fr;gap:10px}
+#v-rep{grid-template-rows:auto auto auto;gap:10px;flex:none}
+.search{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink2);font-family:var(--cond)}
+.search input{flex:1;max-width:420px;font:inherit;font-family:var(--font);font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;color:var(--ink)}
 
 /* ---------- print ---------- */
 @page{size:A4 landscape;margin:0}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   body{background:#fff}
-  .chrome{display:none!important}
+  .chrome,.noprint{display:none!important}
   html,body{height:auto}
   .stage{padding:0;display:block;overflow:visible;height:auto!important}
   .sheets{transform:none!important;gap:0}
